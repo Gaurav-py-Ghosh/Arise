@@ -36,7 +36,7 @@ void main() {
   }
 
   Future<void> pumpApp(WidgetTester tester, AppController c) async {
-    await tester.pumpWidget(AriseApp(controller: c));
+    await tester.pumpWidget(AriseApp(controller: c, boot: false));
     await tester.pumpAndSettle();
   }
 
@@ -190,5 +190,30 @@ void main() {
     expect(find.bySemanticsLabel('VAULT'), findsNothing);
     expect(find.byType(TextField), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('boot screen reports in, then opens the app', (tester) async {
+    final c = await boot();
+    await tester.pumpWidget(AriseApp(controller: c));
+    expect(find.text('ARISE'), findsOneWidget);
+    expect(find.text('> SYSTEM ONLINE'), findsOneWidget);
+
+    // Not before the minimum time has passed.
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(find.bySemanticsLabel('QUESTS'), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('QUESTS'), findsOneWidget);
+    expect(find.text('LEVEL 1'), findsOneWidget);
+  });
+
+  testWidgets('a tap skips the boot screen once ready', (tester) async {
+    final c = await boot();
+    await tester.pumpWidget(AriseApp(controller: c));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.tap(find.text('ARISE'));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('QUESTS'), findsOneWidget);
   });
 }

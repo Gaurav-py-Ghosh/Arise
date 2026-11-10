@@ -24,6 +24,10 @@ abstract class SystemBridge {
   /// Shows the ongoing focus timer notification; null title removes it.
   Future<void> focusNotification(String? title, int startedMs);
 
+  /// Plays a bundled effect: tick, open, start, complete, clear, levelup,
+  /// warn or boot. Unknown names are ignored.
+  Future<void> playSound(String name);
+
   /// Text of the alert the app was opened from, if any. Read once.
   Future<String?> consumeLaunchAlert();
 }
@@ -102,6 +106,9 @@ class AndroidBridge implements SystemBridge {
   @override
   Future<void> focusNotification(String? title, int startedMs) =>
       _call('focusNotification', {'title': title, 'started': startedMs});
+
+  @override
+  Future<void> playSound(String name) => _call('playSound', {'name': name});
 
   @override
   Future<String?> consumeLaunchAlert() => _call<String>('consumeLaunchAlert');

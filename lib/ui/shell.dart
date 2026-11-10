@@ -91,6 +91,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   void _select(int i) {
     if (i == _tab) return;
     HapticFeedback.selectionClick();
+    c.sfx('tick');
     setState(() => _tab = i);
   }
 

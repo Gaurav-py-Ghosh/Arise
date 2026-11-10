@@ -4,6 +4,8 @@ import android.Manifest
 import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
+import android.media.SoundPool
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -19,11 +21,40 @@ class MainActivity : FlutterActivity() {
     private var launchAlert: String? = null
     private var notifResult: MethodChannel.Result? = null
     private val io = Executors.newSingleThreadExecutor()
+    private var pool: SoundPool? = null
+    private val sounds = HashMap<String, Int>()
+
+    /** Loads the short effects once; SoundPool plays them with no latency. */
+    private fun loadSounds() {
+        val sp = SoundPool.Builder()
+            .setMaxStreams(4)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_GAME)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+            .build()
+        val ids = mapOf(
+            "tick" to R.raw.tick, "open" to R.raw.open, "start" to R.raw.start,
+            "complete" to R.raw.complete, "clear" to R.raw.clear,
+            "levelup" to R.raw.levelup, "warn" to R.raw.warn, "boot" to R.raw.boot
+        )
+        for ((name, res) in ids) sounds[name] = sp.load(this, res, 1)
+        pool = sp
+    }
+
+    override fun onDestroy() {
+        pool?.release()
+        pool = null
+        super.onDestroy()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         launchAlert = intent?.getStringExtra(Alerts.EXTRA_ALERT)
         Alerts.ensureChannels(this)
+        loadSounds()
         WatchWorker.schedule(applicationContext)
     }
 
@@ -119,6 +150,11 @@ class MainActivity : FlutterActivity() {
                         this, call.argument<String>("title"),
                         (call.argument<Number>("started") ?: 0).toLong()
                     )
+                    result.success(null)
+                }
+                "playSound" -> {
+                    val id = sounds[call.argument<String>("name")]
+                    if (id != null) pool?.play(id, 1f, 1f, 1, 0, 1f)
                     result.success(null)
                 }
                 "consumeLaunchAlert" -> {

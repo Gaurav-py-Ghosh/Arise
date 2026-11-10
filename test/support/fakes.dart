@@ -28,6 +28,7 @@ class FakeBridge implements SystemBridge {
   final Map<int, List<AppUsage>> byDay = {};
   Map<String, Object?>? watch;
   String? focusTitle;
+  final List<String> sounds = [];
 
   @override
   Future<bool> hasUsageAccess() async => access;
@@ -57,6 +58,8 @@ class FakeBridge implements SystemBridge {
   Future<void> requestIgnoreBattery() async {}
   @override
   Future<void> testAlert() async {}
+  @override
+  Future<void> playSound(String name) async => sounds.add(name);
   @override
   Future<String?> consumeLaunchAlert() async => null;
 }

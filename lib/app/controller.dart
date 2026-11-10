@@ -47,6 +47,7 @@ class Settings {
   int weekendCap = GameConfig.defaultWeekendCapacityMin;
   int budgetMin = GameConfig.defaultDistractionBudgetMin;
   bool overlay = false;
+  bool sound = true;
   String model = GameConfig.defaultModel;
 
   int capacityFor(int day) => isWeekend(day) ? weekendCap : weekdayCap;
@@ -97,6 +98,11 @@ class AppController extends ChangeNotifier {
   int get today => dayKey(now());
   LevelInfo get level => levelFor(player.xp);
 
+  /// Plays an interface sound unless the Player has turned them off.
+  void sfx(String name) {
+    if (settings.sound) bridge.playSound(name);
+  }
+
   SystemEvent? takeEvent() => events.isEmpty ? null : events.removeAt(0);
 
   Future<void> init() async {
@@ -105,6 +111,7 @@ class AppController extends ChangeNotifier {
       ..weekendCap = await store.getInt('cap_weekend', settings.weekendCap)
       ..budgetMin = await store.getInt('budget_min', settings.budgetMin)
       ..overlay = await store.getInt('overlay', 0) == 1
+      ..sound = await store.getInt('sound', 1) == 1
       ..model = await store.get('model') ?? settings.model;
     focusQuestId = int.tryParse(await store.get('focus_quest') ?? '');
     focusStartedMs = await store.getInt('focus_started', 0);
@@ -406,6 +413,7 @@ class AppController extends ChangeNotifier {
     await store.set('focus_quest', q.id!);
     await store.set('focus_started', focusStartedMs);
     await bridge.focusNotification(q.title, focusStartedMs);
+    sfx('start');
     notifyListeners();
   }
 
@@ -472,6 +480,7 @@ class AppController extends ChangeNotifier {
     await store.set('cap_weekend', settings.weekendCap);
     await store.set('budget_min', settings.budgetMin);
     await store.set('overlay', settings.overlay ? 1 : 0);
+    await store.set('sound', settings.sound ? 1 : 0);
     await store.set('model', settings.model);
     _evaluate();
     await _syncWatch();

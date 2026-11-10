@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../app/controller.dart';
 import '../domain/models.dart';
+import 'scope.dart';
 import 'theme.dart';
 
 /// Cut-corner panel with an optional `// LABEL` header.
@@ -637,6 +638,12 @@ class CountText extends StatelessWidget {
 /// Shows a System event as a centred window with one ACKNOWLEDGE button.
 Future<void> showSystemWindow(BuildContext context, SystemEvent e) {
   final win = _celebrations.contains(e.title);
+  AppScope.read(context).sfx(switch (e.title) {
+    'LEVEL UP' => 'levelup',
+    'DAILY QUESTS CLEARED' => 'clear',
+    'QUEST COMPLETE' => 'complete',
+    _ => e.danger ? 'warn' : 'open',
+  });
   if (e.danger || e.title == 'LEVEL UP') {
     HapticFeedback.heavyImpact();
   } else {

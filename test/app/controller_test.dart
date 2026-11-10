@@ -31,6 +31,28 @@ void main() {
     c = await boot();
   });
 
+  test('sound effects respect the setting', () async {
+    c.sfx('tick');
+    expect(bridge.sounds, ['tick']);
+    c.settings.sound = false;
+    await c.saveSettings();
+    c.sfx('tick');
+    expect(bridge.sounds, ['tick']);
+    // The choice survives a restart.
+    final again = AppController(
+        store: c.store, bridge: bridge, now: () => clock, rng: Random(1));
+    await again.init();
+    expect(again.settings.sound, false);
+    again.sfx('open');
+    expect(bridge.sounds, ['tick']);
+  });
+
+  test('starting the focus timer plays its sound', () async {
+    await c.addQuest('a', 30);
+    await c.startFocus(c.todayQuests.single);
+    expect(bridge.sounds, ['start']);
+  });
+
   test('first launch judges nothing', () {
     expect(c.player.lastClosedDay, 20261110);
     expect(c.events, isEmpty);

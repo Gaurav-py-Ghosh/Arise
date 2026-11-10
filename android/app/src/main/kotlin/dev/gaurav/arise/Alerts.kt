@@ -7,6 +7,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.media.AudioAttributes
+import android.net.Uri
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -21,7 +23,7 @@ import android.widget.TextView
 
 /** The System's voice outside the app: notifications and the overlay window. */
 object Alerts {
-    const val CH_ALERT = "arise_alerts"
+    const val CH_ALERT = "arise_alerts_2"
     const val CH_FOCUS = "arise_focus"
     const val EXTRA_ALERT = "arise_alert"
     private const val ID_ALERT = 1001
@@ -35,8 +37,18 @@ object Alerts {
 
     fun ensureChannels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
+        // The first version of the channel used the default sound, which a
+        // channel cannot change after creation.
+        nm.deleteNotificationChannel("arise_alerts")
         nm.createNotificationChannel(
             NotificationChannel(CH_ALERT, "System alerts", NotificationManager.IMPORTANCE_HIGH).apply {
+                setSound(
+                    Uri.parse("android.resource://${ctx.packageName}/${R.raw.alert}"),
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
                 description = "Deviation warnings from the System"
                 enableLights(true)
                 lightColor = BLUE

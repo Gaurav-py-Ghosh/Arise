@@ -306,6 +306,28 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  const Text('Sound effects', style: Sys.body),
+                                  Text('Clicks, quest chimes and the alert tone.',
+                                      style: Sys.small.copyWith(fontSize: 11)),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: s.sound,
+                              onChanged: (v) async {
+                                await _update(() => c.settings.sound = v);
+                                if (v) c.sfx('complete');
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
                                   const Text('Overlay pop-up', style: Sys.body),
                                   Text(
                                     _overlayAllowed == false

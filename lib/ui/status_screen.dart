@@ -574,6 +574,7 @@ class _DirectivePanelState extends State<_DirectivePanel> {
                   // Tapping the active chip returns to "rest of today".
                   onSelected: (v) {
                     HapticFeedback.selectionClick();
+                    c.sfx('tick');
                     setState(() => _window = v == _window ? null : v);
                   },
                 ),
