@@ -30,7 +30,7 @@ chat, so the app works fully offline with template replies.
 
 The key is stored with `flutter_secure_storage` (Android keystore) and never
 leaves the device except in requests to Google. The default model is
-`gemini-3.8-flash`; change it in the same panel if Google renames or retires
+`gemini-3.5-flash-lite`; change it in the same panel if Google renames or retires
 it. Only short facts are sent (today's plan, pending quests, distraction
 minutes, your question), replies are capped, and repeat questions are served
 from a local cache. The chat footer shows tokens used today.

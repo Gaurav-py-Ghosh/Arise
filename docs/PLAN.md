@@ -15,7 +15,7 @@ Project root: `/home/zelvis/Projects/Arise`.
 - Flutter, Android only, minSdk 29. Local SQLite now; Supabase sync later.
 - LLM: Gemini free tier, key pasted in Settings, stored with
   `flutter_secure_storage`, never committed. Default model
-  `gemini-3.8-flash`, editable. Token use must stay minimal.
+  `gemini-3.5-flash-lite`, editable. Token use must stay minimal.
 - All decisions (what to do first, deviation, penalties) are computed in Dart.
   The LLM only words results and answers free-form chat.
 - Deviation = apps tagged distracting + a daily budget, plus planned-versus-
