@@ -50,7 +50,7 @@ class GameConfig {
   static const int behindCheckHour = 18;
 
   // --- LLM ---
-  static const String defaultModel = 'gemini-3.5-flash-lite';
+  static const String defaultModel = 'gemini-3.8-flash';
   static const int chatHistoryTurns = 4;
   static const int maxReplyTokens = 320;
   static const int maxPlanTokens = 600;
