@@ -52,6 +52,6 @@ class GameConfig {
   // --- LLM ---
   static const String defaultModel = 'gemini-3.5-flash-lite';
   static const int chatHistoryTurns = 4;
-  static const int maxReplyTokens = 220;
-  static const int maxPlanTokens = 400;
+  static const int maxReplyTokens = 320;
+  static const int maxPlanTokens = 600;
 }
