@@ -168,6 +168,10 @@ class AppController extends ChangeNotifier {
       'plannedMin': report?.plannedMin ?? 0,
       'doneMin': report?.doneMin ?? 0,
       'distracting': distracting.toList(),
+      'cleared': [
+        for (final e in rules.entries)
+          if (!e.value) e.key
+      ],
       'overlay': settings.overlay,
       'xpLoss': GameConfig.budgetBlownXpLoss,
     });

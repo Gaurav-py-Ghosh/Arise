@@ -12,6 +12,9 @@ abstract class SystemBridge {
   /// starting Flutter.
   Future<void> saveWatchConfig(Map<String, Object?> config);
   Future<bool> requestNotifications();
+
+  /// Whether notifications may be posted, without asking.
+  Future<bool> notificationsAllowed();
   Future<bool> canOverlay();
   Future<void> openOverlaySettings();
   Future<bool> ignoresBattery();
@@ -75,6 +78,10 @@ class AndroidBridge implements SystemBridge {
   @override
   Future<bool> requestNotifications() async =>
       await _call<bool>('requestNotifications') ?? false;
+
+  @override
+  Future<bool> notificationsAllowed() async =>
+      await _call<bool>('notificationsAllowed') ?? false;
 
   @override
   Future<bool> canOverlay() async => await _call<bool>('canOverlay') ?? false;

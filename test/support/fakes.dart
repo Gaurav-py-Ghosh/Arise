@@ -4,9 +4,12 @@ import 'package:arise/system/bridge.dart';
 import 'package:arise/system/llm.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-Future<Store> memoryStore() async {
+/// [isolate] false runs SQLite on the calling isolate, which widget tests
+/// need: their fake clock never delivers messages from a background isolate.
+Future<Store> memoryStore({bool isolate = true}) async {
   sqfliteFfiInit();
-  final db = await databaseFactoryFfi.openDatabase(
+  final factory = isolate ? databaseFactoryFfi : databaseFactoryFfiNoIsolate;
+  final db = await factory.openDatabase(
     inMemoryDatabasePath,
     options: OpenDatabaseOptions(
       version: Store.schemaVersion,
@@ -42,6 +45,8 @@ class FakeBridge implements SystemBridge {
   Future<void> openUsageAccess() async {}
   @override
   Future<bool> requestNotifications() async => true;
+  @override
+  Future<bool> notificationsAllowed() async => true;
   @override
   Future<bool> canOverlay() async => false;
   @override
