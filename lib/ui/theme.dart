@@ -16,6 +16,9 @@ class Sys {
   static const gold = Color(0xFFFFC857);
   static const ok = Color(0xFF3DFFB0);
 
+  /// Unfilled bar segments and empty grid cells.
+  static const well = Color(0xFF0F1828);
+
   static const font = 'monospace';
 
   /// Horizontal page gutter and the gap between panels.
@@ -35,23 +38,23 @@ class Sys {
   /// `// LABEL` section headers.
   static const label = TextStyle(
     fontFamily: font,
-    fontSize: 11,
-    letterSpacing: 2,
+    fontSize: 10.5,
+    letterSpacing: 1.6,
     color: dim,
   );
 
   static const title = TextStyle(
     fontFamily: font,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: FontWeight.w700,
-    letterSpacing: 5,
+    letterSpacing: 4,
     color: accentHi,
   );
 
   static const body = TextStyle(
     fontFamily: font,
-    fontSize: 13.5,
-    height: 1.45,
+    fontSize: 13,
+    height: 1.4,
     color: text,
   );
 

@@ -23,6 +23,15 @@ void main() {
     expect(rankFor(80), 'S');
   });
 
+  test('next rank and titles', () {
+    expect(nextRank(1), ('D', 5));
+    expect(nextRank(5), ('C', 10));
+    expect(nextRank(50), isNull);
+    expect(titleFor(const Player(), 1), 'INITIATE');
+    expect(titleFor(const Player(), 12), 'ADEPT');
+    expect(titleFor(const Player(streak: 7), 12), 'DISCIPLINED');
+  });
+
   test('quest XP scales with estimate and priority, halves for penalty', () {
     const q = Quest(title: 'a', day: 20261111, estimateMin: 60);
     expect(questXp(q), 60);

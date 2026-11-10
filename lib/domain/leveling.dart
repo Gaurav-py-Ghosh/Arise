@@ -59,3 +59,23 @@ int applyXpLoss(int totalXp, int loss) {
   final next = totalXp - loss;
   return next < floor ? floor : next;
 }
+
+/// The rank after the current one and the level it starts at; null at the top.
+(String rank, int level)? nextRank(int level) {
+  for (final e in GameConfig.rankFloors.entries) {
+    if (e.value > level) return (e.key, e.value);
+  }
+  return null;
+}
+
+/// A title earned by consistency first, then by level.
+String titleFor(Player p, int level) {
+  if (p.streak >= 30) return 'UNBROKEN';
+  if (p.streak >= 14) return 'RELENTLESS';
+  if (p.streak >= 7) return 'DISCIPLINED';
+  if (p.streak >= 3) return 'CONSISTENT';
+  if (level >= 20) return 'VETERAN';
+  if (level >= 10) return 'ADEPT';
+  if (level >= 5) return 'CLIMBER';
+  return 'INITIATE';
+}

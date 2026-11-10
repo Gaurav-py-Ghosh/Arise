@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app/controller.dart';
 import '../domain/deviation.dart';
@@ -40,10 +41,7 @@ class StatusScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _PlayerPanel(player: c.player, level: c.level),
-              if (!c.usageAccess) ...[
-                const SizedBox(height: Sys.gap),
-                GrantAccessPanel(onGrant: c.bridge.openUsageAccess),
-              ],
+              _SetupPanel(controller: c),
               const SizedBox(height: Sys.gap),
               _DirectivePanel(controller: c, onOpenQuests: () => onOpenTab?.call(1)),
               if (rep != null) ...[
@@ -55,12 +53,226 @@ class StatusScreen extends StatelessWidget {
                       report: rep, onOpenUsage: () => onOpenTab?.call(3)),
                 ],
               ],
+              const SizedBox(height: Sys.gap),
+              _ActivityPanel(history: c.history, today: c.today),
             ],
           ),
         ),
       ],
     );
   }
+}
+
+/// What the System still needs from the phone, one tap per row. Disappears
+/// once the three permissions are in place.
+class _SetupPanel extends StatefulWidget {
+  const _SetupPanel({required this.controller});
+
+  final AppController controller;
+
+  @override
+  State<_SetupPanel> createState() => _SetupPanelState();
+}
+
+class _SetupPanelState extends State<_SetupPanel> {
+  bool? _notif;
+  bool? _battery;
+
+  AppController get c => widget.controller;
+
+  @override
+  void initState() {
+    super.initState();
+    c.addListener(_load);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    c.removeListener(_load);
+    super.dispose();
+  }
+
+  // The controller notifies on resume, which is when these can have changed.
+  Future<void> _load() async {
+    final n = await c.bridge.notificationsAllowed();
+    final b = await c.bridge.ignoresBattery();
+    if (!mounted || (n == _notif && b == _battery)) return;
+    setState(() {
+      _notif = n;
+      _battery = b;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_notif == null || _battery == null) return const SizedBox.shrink();
+    final steps = [
+      (c.usageAccess, 'USAGE ACCESS', 'see screen time', c.bridge.openUsageAccess),
+      (_notif!, 'NOTIFICATIONS', 'deliver warnings', () async {
+        await c.bridge.requestNotifications();
+        await _load();
+      }),
+      (_battery!, 'BACKGROUND WATCH', 'stop the OS killing it',
+          c.bridge.requestIgnoreBattery),
+    ];
+    final done = steps.where((s) => s.$1).length;
+    if (done == steps.length) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: Sys.gap),
+      child: SysPanel(
+        label: 'SYSTEM SETUP',
+        accent: Sys.gold,
+        trailing: Text('$done/${steps.length}',
+            style: Sys.label.copyWith(color: Sys.gold)),
+        padding: const EdgeInsets.fromLTRB(14, 12, 6, 6),
+        child: Column(
+          children: [
+            for (final (ok, name, why, action) in steps)
+              InkWell(
+                onTap: ok ? null : action,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  child: Row(
+                    children: [
+                      Text(ok ? '[x]' : '[ ]',
+                          style: Sys.body.copyWith(
+                              color: ok ? Sys.ok : Sys.gold,
+                              fontWeight: FontWeight.w700)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text.rich(
+                          TextSpan(children: [
+                            TextSpan(
+                                text: name,
+                                style: TextStyle(
+                                    color: ok ? Sys.dim : Sys.text,
+                                    fontWeight: FontWeight.w700)),
+                            TextSpan(text: '  $why', style: Sys.small),
+                          ]),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Sys.body.copyWith(fontSize: 12.5),
+                        ),
+                      ),
+                      if (!ok)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          child: Icon(Icons.chevron_right_rounded,
+                              size: 18, color: Sys.gold),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A commit-graph of the last 20 weeks: one cell per day, brighter the more
+/// of that day's quests were cleared.
+class _ActivityPanel extends StatelessWidget {
+  const _ActivityPanel({required this.history, required this.today});
+
+  final Map<int, (int, int)> history;
+  final int today;
+
+  static const weeks = 20;
+
+  @override
+  Widget build(BuildContext context) {
+    final cleared =
+        history.values.where((v) => v.$1 > 0 && v.$2 == v.$1).length;
+    return SysPanel(
+      label: 'ACTIVITY LOG',
+      trailing: Text('$cleared DAY(S) CLEARED',
+          style: Sys.label.copyWith(letterSpacing: 1)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          RepaintBoundary(
+            child: AspectRatio(
+              aspectRatio: weeks / 7,
+              child: CustomPaint(painter: _GridPainter(history, today)),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text('git log --since="20 weeks"', style: Sys.small),
+              ),
+              for (final c in const [
+                Sys.well,
+                Color(0x733DA9FF),
+                Sys.accent,
+                Color(0x99FF4D5E)
+              ])
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: SizedBox(
+                      width: 9, height: 9, child: ColoredBox(color: c)),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GridPainter extends CustomPainter {
+  _GridPainter(this.history, this.today);
+
+  final Map<int, (int, int)> history;
+  final int today;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const weeks = _ActivityPanel.weeks;
+    const gap = 3.0;
+    final cell = (size.width - gap * (weeks - 1)) / weeks;
+    final todayRow = dayFromKey(today).weekday - 1;
+    final paint = Paint();
+    for (var w = 0; w < weeks; w++) {
+      for (var r = 0; r < 7; r++) {
+        // The last column is the current week; rows run Monday to Sunday.
+        final back = (weeks - 1 - w) * 7 + (todayRow - r);
+        if (back < 0) continue;
+        final day = addDays(today, -back);
+        final (total, done) = history[day] ?? (0, 0);
+        paint
+          ..style = PaintingStyle.fill
+          ..color = total == 0
+              ? Sys.well
+              : done == total
+                  ? Sys.accent
+                  : done > 0
+                      ? const Color(0x733DA9FF)
+                      : back == 0
+                          ? Sys.well
+                          : const Color(0x99FF4D5E);
+        final rect =
+            Rect.fromLTWH(w * (cell + gap), r * (cell + gap), cell, cell);
+        canvas.drawRect(rect, paint);
+        if (back == 0) {
+          canvas.drawRect(
+              rect.deflate(0.5),
+              paint
+                ..style = PaintingStyle.stroke
+                ..strokeWidth = 1
+                ..color = Sys.accentHi);
+        }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_GridPainter old) =>
+      old.today != today || !identical(old.history, history);
 }
 
 class _PlayerPanel extends StatelessWidget {
@@ -75,7 +287,8 @@ class _PlayerPanel extends StatelessWidget {
     return SysPanel(
       label: 'STATUS',
       glow: true,
-      trailing: Text('${player.xp} XP TOTAL',
+      trailing: CountText(player.xp,
+          format: (n) => '$n XP TOTAL',
           style: Sys.label.copyWith(color: Sys.dim, letterSpacing: 1)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -104,6 +317,9 @@ class _PlayerPanel extends StatelessWidget {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 2),
+                    Text('title: ${titleFor(player, level.level)}',
+                        style: Sys.small.copyWith(color: Sys.gold)),
                   ],
                 ),
               ),
@@ -114,9 +330,20 @@ class _PlayerPanel extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              Text('XP', style: Sys.small.copyWith(letterSpacing: 2)),
-              const Spacer(),
-              Text('${level.into} / ${level.needed}',
+              Expanded(
+                child: Text(
+                  switch (nextRank(level.level)) {
+                    null => 'XP  ·  highest rank reached',
+                    (final r, final at) =>
+                      'XP  ·  rank $r in ${at - level.level} level(s)',
+                  },
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Sys.small,
+                ),
+              ),
+              CountText(level.into,
+                  format: (n) => '$n / ${level.needed}',
                   style: Sys.small.copyWith(color: Sys.accentHi)),
             ],
           ),
@@ -155,14 +382,14 @@ class _RankBox extends StatelessWidget {
         shape: Sys.shape(color.withValues(alpha: 0.8), width: 1.5, radius: Sys.cut),
       ),
       child: SizedBox(
-        width: 72,
-        height: 72,
+        width: 64,
+        height: 64,
         child: Center(
           child: Text(
             rank,
             style: TextStyle(
               fontFamily: Sys.font,
-              fontSize: 40,
+              fontSize: 36,
               fontWeight: FontWeight.w700,
               color: color,
               height: 1,
@@ -199,15 +426,24 @@ class _Stat extends StatelessWidget {
   }
 }
 
-class _DirectivePanel extends StatelessWidget {
+class _DirectivePanel extends StatefulWidget {
   const _DirectivePanel({required this.controller, required this.onOpenQuests});
 
   final AppController controller;
   final VoidCallback onOpenQuests;
 
   @override
+  State<_DirectivePanel> createState() => _DirectivePanelState();
+}
+
+class _DirectivePanelState extends State<_DirectivePanel> {
+  /// Minutes the Player says they have; null means "what is left of today".
+  int? _window;
+
+  @override
   Widget build(BuildContext context) {
-    final c = controller;
+    final c = widget.controller;
+    final onOpenQuests = widget.onOpenQuests;
     final running = c.focusQuestId == null
         ? null
         : c.todayQuests.where((q) => q.id == c.focusQuestId).firstOrNull ??
@@ -252,7 +488,9 @@ class _DirectivePanel extends StatelessWidget {
     var left = c.settings.capacityFor(c.today) - done;
     // Past capacity, still name something: the clock is not the excuse.
     if (left < 15) left = 15;
-    final pick = pickNext(c.todayQuests, left, c.today).first;
+    if (_window != null) left = _window!;
+    final result = pickNext(c.todayQuests, left, c.today);
+    final pick = result.first;
 
     if (pick == null) {
       final anyToday = c.todayQuests.isNotEmpty;
@@ -280,7 +518,8 @@ class _DirectivePanel extends StatelessWidget {
     final q = pick.quest;
     return SysPanel(
       label: 'NEXT DIRECTIVE',
-      trailing: Text('${fmtMin(left)} LEFT',
+      trailing: Text(
+          _window == null ? '${fmtMin(left)} LEFT TODAY' : 'IN ${fmtMin(left)}',
           style: Sys.label.copyWith(letterSpacing: 1)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -304,11 +543,43 @@ class _DirectivePanel extends StatelessWidget {
             const SizedBox(height: 8),
             Text('// ${pick.reasons.join(' · ')}', style: Sys.small),
           ],
+          if (result.queue.length > 1) ...[
+            const SizedBox(height: 4),
+            Text(
+              '// then: ${result.queue.where((p) => p.quest.id != q.id).map((p) => p.quest.title).join(', ')}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Sys.small,
+            ),
+          ],
           const SizedBox(height: 12),
           SysButton('BEGIN',
               icon: Icons.play_arrow_rounded,
               filled: true,
               onPressed: () => c.startFocus(q)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Text('I HAVE', style: Sys.label.copyWith(fontSize: 10)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ChoiceChips<int?>(
+                  options: const [
+                    ('15m', 15),
+                    ('30m', 30),
+                    ('1h', 60),
+                    ('2h', 120),
+                  ],
+                  selected: _window,
+                  // Tapping the active chip returns to "rest of today".
+                  onSelected: (v) {
+                    HapticFeedback.selectionClick();
+                    setState(() => _window = v == _window ? null : v);
+                  },
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

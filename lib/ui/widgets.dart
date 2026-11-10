@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app/controller.dart';
 import '../domain/models.dart';
@@ -101,7 +102,7 @@ class ScreenHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(Sys.gutter, 14, 8, 10),
+      padding: const EdgeInsets.fromLTRB(Sys.gutter, 10, 8, 8),
       child: Row(
         children: [
           Expanded(
@@ -245,7 +246,7 @@ class _BarPainter extends CustomPainter {
     final w = (size.width - gap * (segments - 1)) / segments;
     if (w <= 0) return;
     final on = Paint()..color = color;
-    final off = Paint()..color = Sys.line;
+    final off = Paint()..color = Sys.well;
     final filled = value * segments;
     for (var i = 0; i < segments; i++) {
       final x = i * (w + gap);
@@ -558,17 +559,102 @@ class _FocusClockState extends State<FocusClock> {
   }
 }
 
+/// Text that types itself out once, then stays. The full text is laid out
+/// from the first frame, so nothing around it moves. Tap to finish early.
+class TypeText extends StatefulWidget {
+  const TypeText(this.text, {super.key, this.style});
+
+  final String text;
+  final TextStyle? style;
+
+  @override
+  State<TypeText> createState() => _TypeTextState();
+}
+
+class _TypeTextState extends State<TypeText>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: Duration(
+        milliseconds: (widget.text.length * 12).clamp(180, 900).toInt()),
+  )..forward();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = widget.text;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _c.value = 1,
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (_, _) {
+          final n = (t.length * _c.value).floor().clamp(0, t.length);
+          return Text.rich(
+            TextSpan(children: [
+              TextSpan(text: t.substring(0, n)),
+              TextSpan(
+                  text: t.substring(n),
+                  style: const TextStyle(color: Colors.transparent)),
+            ]),
+            style: widget.style,
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// A number that counts to its new value instead of jumping.
+class CountText extends StatelessWidget {
+  const CountText(this.value, {super.key, this.style, this.format});
+
+  final int value;
+  final TextStyle? style;
+  final String Function(int)? format;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(end: value.toDouble()),
+      duration: const Duration(milliseconds: 650),
+      curve: Curves.easeOutCubic,
+      builder: (_, v, _) {
+        final n = v.round();
+        return Text(format == null ? '$n' : format!(n), style: style);
+      },
+    );
+  }
+}
+
 // --- System windows ---
 
 /// Shows a System event as a centred window with one ACKNOWLEDGE button.
-Future<void> showSystemWindow(BuildContext context, SystemEvent e) =>
-    _showWindow<void>(
-      context,
-      title: e.title,
-      body: e.body,
-      danger: e.danger,
-      actions: const [('ACKNOWLEDGE', null, false)],
-    );
+Future<void> showSystemWindow(BuildContext context, SystemEvent e) {
+  final win = _celebrations.contains(e.title);
+  if (e.danger || e.title == 'LEVEL UP') {
+    HapticFeedback.heavyImpact();
+  } else {
+    HapticFeedback.mediumImpact();
+  }
+  return _showWindow<void>(
+    context,
+    title: e.title,
+    body: e.body,
+    danger: e.danger,
+    tint: win ? Sys.gold : null,
+    typed: true,
+    actions: [(win ? 'CLAIM' : 'ACKNOWLEDGE', null, false)],
+  );
+}
+
+/// Events that are a win: shown in gold.
+const _celebrations = {'LEVEL UP', 'DAILY QUESTS CLEARED'};
 
 /// Asks for confirmation in a System window. True when confirmed.
 Future<bool> confirmSystem(
@@ -593,6 +679,8 @@ Future<T?> _showWindow<T>(
   required String body,
   required bool danger,
   required List<(String, T?, bool)> actions,
+  Color? tint,
+  bool typed = false,
 }) {
   return showGeneralDialog<T>(
     context: context,
@@ -607,6 +695,8 @@ Future<T?> _showWindow<T>(
         body: body,
         danger: danger,
         actions: actions,
+        tint: tint,
+        typed: typed,
       ),
     ),
     transitionBuilder: (ctx, anim, _, child) {
@@ -628,16 +718,20 @@ class _SystemWindow<T> extends StatelessWidget {
     required this.body,
     required this.danger,
     required this.actions,
+    this.tint,
+    this.typed = false,
   });
 
   final String title;
   final String body;
   final bool danger;
   final List<(String, T?, bool)> actions;
+  final Color? tint;
+  final bool typed;
 
   @override
   Widget build(BuildContext context) {
-    final accent = danger ? Sys.danger : Sys.accent;
+    final accent = tint ?? (danger ? Sys.danger : Sys.accent);
     return SafeArea(
       child: Center(
         child: Padding(
@@ -696,7 +790,9 @@ class _SystemWindow<T> extends StatelessWidget {
                       const SizedBox(height: 10),
                       Flexible(
                         child: SingleChildScrollView(
-                          child: Text(body, style: Sys.body),
+                          child: typed
+                              ? TypeText(body, style: Sys.body)
+                              : Text(body, style: Sys.body),
                         ),
                       ),
                       const SizedBox(height: 18),

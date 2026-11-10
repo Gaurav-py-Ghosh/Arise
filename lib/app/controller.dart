@@ -79,6 +79,10 @@ class AppController extends ChangeNotifier {
   List<Target> targets = const [];
   Map<int, (int, int)> targetProgress = const {};
   List<FunItem> fun = const [];
+
+  /// Quest totals per day for the activity log: day -> (total, done).
+  Map<int, (int, int)> history = const {};
+  static const historyDays = 140;
   List<AppUsage> usage = const [];
   Map<String, bool> rules = const {};
   bool usageAccess = false;
@@ -122,6 +126,8 @@ class AppController extends ChangeNotifier {
     final all = await store.questsBetween(t, addDays(t, 13));
     todayQuests = all.where((q) => q.day == t).toList();
     upcoming = all.where((q) => q.day > t).toList();
+    history = await store.dayTotals(addDays(t, -(historyDays - 1)), t);
+    await _briefOncePerDay(t);
     targets = await store.targets();
     targetProgress = {
       for (final tg in targets) tg.id!: await store.targetProgress(tg.id!)
@@ -138,6 +144,24 @@ class AppController extends ChangeNotifier {
     _evaluate();
     await _syncWatch();
     notifyListeners();
+  }
+
+  /// The first open of each day gets a briefing, so the stakes are clear
+  /// before anything else is. Never on the very first launch.
+  Future<void> _briefOncePerDay(int t) async {
+    final briefed = await store.getInt('briefed_day', 0);
+    if (briefed == t) return;
+    await store.set('briefed_day', t);
+    final pending = todayQuests.where((q) => !q.done).toList();
+    if (briefed == 0 || pending.isEmpty) return;
+    final minutes = pending.fold<int>(0, (s, q) => s + q.remainingMin);
+    final penalties = pending.where((q) => q.penalty).length;
+    events.add(SystemEvent(
+        'DAILY BRIEFING',
+        '${pending.length} quest(s) issued for today, ${fmtMin(minutes)} of work.\n'
+            '${penalties > 0 ? '$penalties of them are penalty quests.\n' : ''}'
+            '${player.streak > 0 ? 'Streak at stake: ${player.streak} day(s).' : 'Clear them all to begin a streak.'}\n'
+            'Full clear bonus: +${GameConfig.dailyClearBonusXp} XP.'));
   }
 
   void _evaluate() {

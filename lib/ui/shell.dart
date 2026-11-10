@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app/controller.dart';
 import '../system/bridge.dart';
@@ -89,6 +90,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   void _select(int i) {
     if (i == _tab) return;
+    HapticFeedback.selectionClick();
     setState(() => _tab = i);
   }
 

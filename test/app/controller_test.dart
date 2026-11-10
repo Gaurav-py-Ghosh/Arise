@@ -104,8 +104,15 @@ void main() {
     expect(c.player.xp, xp);
     expect(c.todayQuests.single.penalty, true);
     expect(c.todayQuests.single.day, 20261112);
-    expect(c.events.single.title, 'DAY JUDGEMENT');
-    expect(c.events.single.danger, true);
+    expect(c.events.map((e) => e.title), ['DAY JUDGEMENT', 'DAILY BRIEFING']);
+    expect(c.events.first.danger, true);
+    expect(c.events.last.body, contains('penalty'));
+    expect(c.history[20261111], (1, 1));
+
+    // The briefing is not repeated on the same day.
+    c.events.clear();
+    await c.refresh();
+    expect(c.events, isEmpty);
   });
 
   test('a cleared day builds the streak; blown budget costs XP', () async {
